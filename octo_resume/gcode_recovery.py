@@ -11,8 +11,9 @@ _PRUSA_LAYER_RE = re.compile(r"^;\s*layer\s+(\d+)\s*$", re.IGNORECASE)
 # Common in Bambu Studio / OrcaSlicer: layer transitions as markers without explicit numbers.
 _LAYER_CHANGE_RE = re.compile(r"^;\s*LAYER_CHANGE\s*$", re.IGNORECASE)
 
-# Also common in Bambu/Orca comments
-_COMMENT_Z_RE = re.compile(r"^;\s*Z:(-?\d+(?:\.\d+)?)\s*$", re.IGNORECASE)
+# Also common in Bambu/Orca comments.
+# Support both full-line and "Z:" appearing anywhere in the comment, e.g. ";Z:12.34", "; Z: 12.34", ";... Z:12.34 ..."
+_COMMENT_Z_ANYWHERE_RE = re.compile(r"(?:^|[;\s])Z\s*:\s*(-?\d+(?:\.\d+)?)", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -53,8 +54,7 @@ def _find_z_in_gcode(code: str) -> Optional[float]:
 
 
 def _find_z_in_comment(line: str) -> Optional[float]:
-    # Entire line comment like ";Z:12.34"
-    m = _COMMENT_Z_RE.match(line.strip("\n"))
+    m = _COMMENT_Z_ANYWHERE_RE.search(line)
     if not m:
         return None
     try:
@@ -190,24 +190,39 @@ def generate_recovery_gcode(
 
     resume_lines = lines[target_idx:]
 
-    # Compute a reasonable safety Z:
-    computed_z: Optional[float] = None
-    for raw in resume_lines[:300]:
-        # First try comment Z like ";Z:12.3", then gcode Z parameter.
+    # safety_z is a *lift amount* (mm), not an absolute Z height. Default: 5mm.
+    lift_mm = 5.0 if safety_z is None else float(safety_z)
+    if lift_mm < 0:
+        raise RecoveryError("safety_z must be >= 0 (it is a lift amount in mm).")
+
+    # Determine the resume layer's Z.
+    #
+    # Important: many slicers perform the Z raise at the end of the *previous* layer,
+    # so the resume layer itself may contain no "Z" moves (which previously caused the
+    # fallback to Z50 and a huge jump).
+    layer_z: Optional[float] = None
+
+    def consider_line_for_z(raw: str) -> Optional[float]:
         zc = _find_z_in_comment(raw)
         if zc is not None:
-            computed_z = zc
-            break
+            return zc
         code, _ = _split_comment(raw)
-        zg = _find_z_in_gcode(code)
-        if zg is not None:
-            computed_z = zg
+        return _find_z_in_gcode(code)
+
+    # Forward scan (near the resume marker)
+    for raw in resume_lines[:500]:
+        z = consider_line_for_z(raw)
+        if z is not None:
+            layer_z = z
             break
 
-    if safety_z is None:
-        safety_z_to_use = (computed_z + 5.0) if (computed_z is not None) else 50.0
-    else:
-        safety_z_to_use = float(safety_z)
+    # Backward scan (common case: Z is set right before the layer marker)
+    if layer_z is None:
+        for raw in reversed(lines[:target_idx]):
+            z = consider_line_for_z(raw)
+            if z is not None:
+                layer_z = z
+                break
 
     inserted_safe_z = False
     for raw in resume_lines:
@@ -216,7 +231,14 @@ def generate_recovery_gcode(
 
         if (not inserted_safe_z) and _is_move_with_xy(code):
             out_lines.append("; --- OCTO RESUME INSERT: safety Z lift ---\n")
-            out_lines.append(f"G1 Z{safety_z_to_use:.3f} F900\n")
+            if layer_z is not None:
+                # Absolute move to (layer_z + lift) before first XY travel.
+                out_lines.append(f"G1 Z{(layer_z + lift_mm):.3f} F900\n")
+            else:
+                # Fallback: relative lift (better than jumping to Z50 when Z is unknown).
+                out_lines.append("G91\n")
+                out_lines.append(f"G1 Z{lift_mm:.3f} F900\n")
+                out_lines.append("G90\n")
             inserted_safe_z = True
 
         # Never emit Z-homing anywhere.
