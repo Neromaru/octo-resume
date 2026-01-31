@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "octoprint-myplugin"
+version = "0.1.0"
+description = "An OctoPrint plugin scaffold."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "AGPL-3.0-or-later" }
+authors = [{ name = "near3" }]
+dependencies = [
+  # OctoPrint provides its own runtime; keep plugin deps minimal.
+]
+
+[project.urls]
+Homepage = "https://example.invalid"
+
+# IMPORTANT: This registers the plugin with OctoPrint's plugin system.
+[project.entry-points."octoprint.plugin"]
+myplugin = "octoprint_myplugin"
+
+[tool.setuptools]
+packages = ["octoprint_myplugin"]
+
+

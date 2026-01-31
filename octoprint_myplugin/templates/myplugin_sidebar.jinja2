@@ -1,0 +1,91 @@
+<div id="sidebar_plugin_myplugin_recovery" class="panel panel-default">
+  <div class="panel-heading">
+    <h3 class="panel-title">Continue print where…</h3>
+  </div>
+  <div class="panel-body">
+    <div class="help-block">
+      Generates a <code>*_RECOVERY.gcode</code> file that resumes at a chosen layer.
+      You can also use the <strong>Continue print where…</strong> button in the Files actions (next to the selected file).
+    </div>
+
+    <div class="control-group">
+      <label class="control-label">Source file (path in Files list)</label>
+      <div class="controls">
+        <input class="input-block-level" type="text" placeholder="e.g. test.gcode or folder/test.gcode"
+               data-bind="value: recoverySourcePath" />
+        <span class="help-inline" data-bind="visible: selectedFilePath">
+          Selected: <code data-bind="text: selectedFilePath"></code>
+        </span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label class="control-label">Target layer (number)</label>
+      <div class="controls">
+        <input class="input-small" type="number" min="0" step="1" placeholder="102"
+               data-bind="value: recoveryTargetLayer" />
+        <span class="help-inline">Matches <code>;LAYER:102</code> or <code>; layer 102</code></span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label class="control-label">Safety Z height (optional)</label>
+      <div class="controls">
+        <input class="input-small" type="number" min="0" step="0.1" placeholder="50"
+               data-bind="value: recoverySafetyZ" />
+        <span class="help-inline">Leave blank to use (resume Z + 5) or fallback to 50</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="controls">
+        <button class="btn btn-primary" data-bind="click: generateRecovery, enable: canGenerateRecovery">
+          Continue print where…
+        </button>
+      </div>
+    </div>
+
+    <div class="alert alert-info" data-bind="visible: lastOutputPath">
+      Created: <code data-bind="text: lastOutputPath"></code>
+    </div>
+  </div>
+</div>
+
+<!-- Modal (opened from Files action button) -->
+<div id="myplugin_recovery_modal" class="modal hide fade" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+    <h3>Continue print where…</h3>
+  </div>
+  <div class="modal-body">
+    <p>
+      Source: <code data-bind="text: recoverySourcePath"></code>
+    </p>
+
+    <div class="control-group">
+      <label class="control-label">Target layer (number)</label>
+      <div class="controls">
+        <input id="myplugin_recovery_target_layer" class="input-small" type="number" min="0" step="1" placeholder="102"
+               data-bind="value: recoveryTargetLayer" />
+        <span class="help-inline">Matches <code>;LAYER:102</code> or <code>; layer 102</code></span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label class="control-label">Safety Z height (optional)</label>
+      <div class="controls">
+        <input class="input-small" type="number" min="0" step="0.1" placeholder="50"
+               data-bind="value: recoverySafetyZ" />
+        <span class="help-inline">Leave blank to use (resume Z + 5) or fallback to 50</span>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+    <button class="btn btn-primary" data-bind="click: generateRecovery, enable: canGenerateRecovery">
+      Generate recovery file
+    </button>
+  </div>
+</div>
+
+
