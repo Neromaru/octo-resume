@@ -36,11 +36,34 @@ $(function () {
       return null;
     };
 
+    self._extractLocalPathFromFileObject = function (f) {
+      if (!f) return null;
+      if (f.origin && f.origin !== "local") return null;
+      if (typeof f.path === "string" && f.path.length > 0) return f.path;
+      if (typeof f.name === "string" && f.name.length > 0) return f.name;
+      return null;
+    };
+
     self._syncFromSelection = function () {
       var p = self._extractSelectedLocalPath();
       self.selectedFilePath(p || "");
       if (p && (self.recoverySourcePath() || "").trim().length === 0) {
         self.recoverySourcePath(p);
+      }
+    };
+
+    self.openRecoveryDialogForPath = function (path) {
+      if (!path) return;
+      self.recoverySourcePath(path);
+      self.selectedFilePath(path);
+
+      try {
+        $("#myplugin_recovery_modal").modal("show");
+        setTimeout(function () {
+          $("#myplugin_recovery_target_layer").focus();
+        }, 50);
+      } catch (e) {
+        // If modal isn't available for some reason, still works via sidebar panel.
       }
     };
 
@@ -105,60 +128,52 @@ $(function () {
         });
     };
 
-    self.openRecoveryDialogForSelectedFile = function () {
-      var p = self._extractSelectedLocalPath();
-      if (!p) {
-        new PNotify({
-          title: "Recovery",
-          text: "Select a LOCAL G-code file first (Files list), then try again.",
-          type: "error",
-        });
-        return;
-      }
+    self._injectPerFileRecoveryButtons = function () {
+      // Add a wrench icon button next to EACH file entry (local .gcode), near the existing action icons.
+      var root = $("#files");
+      if (!root.length) return false;
 
-      self.recoverySourcePath(p);
-      self._syncFromSelection();
+      // Heuristic: file rows commonly have an action button group; we append our button to that group.
+      var groups = root.find(".btn-group");
+      if (!groups.length) return false;
 
-      try {
-        $("#myplugin_recovery_modal").modal("show");
-        setTimeout(function () {
-          $("#myplugin_recovery_target_layer").focus();
-        }, 50);
-      } catch (e) {
-        // If modal isn't available for some reason, still works via sidebar panel.
-      }
-    };
+      groups.each(function () {
+        var group = $(this);
+        if (group.find(".myplugin-recovery-btn").length) return;
 
-    self._injectFilesActionButton = function () {
-      if ($("#myplugin_recovery_files_action_btn").length) return true;
+        // Find the closest row element that has Knockout data attached.
+        var row = group.closest("li, tr, .file, .entry").get(0);
+        if (!row) return;
 
-      // Try a handful of common containers in the Files pane.
-      var selectors = [
-        "#files .file-actions",
-        "#files .files_actions",
-        "#files .btn-toolbar",
-        "#files .btn-group",
-      ];
-
-      var container = null;
-      for (var i = 0; i < selectors.length; i++) {
-        var el = $(selectors[i]).first();
-        if (el && el.length) {
-          container = el;
-          break;
+        var data = null;
+        try {
+          data = ko.dataFor(row);
+        } catch (e) {
+          data = null;
         }
-      }
+        var path = self._extractLocalPathFromFileObject(data);
+        if (!path) return;
 
-      if (!container) return false;
+        // Limit to gcode-like files (still allow ".gco" variants).
+        var lower = (path || "").toLowerCase();
+        if (!(lower.endsWith(".gcode") || lower.endsWith(".gco") || lower.endsWith(".g"))) return;
 
-      var btn = $(
-        '<button id="myplugin_recovery_files_action_btn" class="btn" type="button" title="Generate a recovery G-code from the selected file">Continue print where…</button>'
-      );
-      btn.on("click", function () {
-        self.openRecoveryDialogForSelectedFile();
+        // Button (wrench icon). Supports both Bootstrap2 glyphicons (icon-*) and FontAwesome (fa-*).
+        var btn = $(
+          '<a href="javascript:void(0)" class="btn btn-mini myplugin-recovery-btn" title="Generate recovery G-code from this file">' +
+            '<i class="icon-wrench fa fa-wrench"></i>' +
+          "</a>"
+        );
+
+        btn.on("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          self.openRecoveryDialogForPath(path);
+        });
+
+        group.append(btn);
       });
 
-      container.append(btn);
       return true;
     };
 
@@ -174,7 +189,9 @@ $(function () {
     var tries = 0;
     var timer = setInterval(function () {
       tries += 1;
-      if (self._injectFilesActionButton() || tries > 20) {
+      // Keep trying because the file list can re-render and lose injected buttons.
+      self._injectPerFileRecoveryButtons();
+      if (tries > 60) {
         clearInterval(timer);
       }
     }, 500);
