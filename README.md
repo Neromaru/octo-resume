@@ -1,8 +1,8 @@
-# OctoPrint Plugin: My Plugin
+# OctoPrint Plugin: Octo Resume
 
-This repository is an **OctoPrint plugin** scaffold using modern Python packaging (`pyproject.toml`) and the correct `octoprint.plugin` entry point.
+This repository is an **OctoPrint plugin** that generates a resume-ready recovery G-code file when a print fails mid-way.
 
-It also includes a **Mid-Print Recovery** tool that generates a new G-code file to resume at a chosen layer (no manual editing).
+It adds a **wrench icon** next to every local G-code file in OctoPrint’s Files list.
 
 ## What you need
 
@@ -21,10 +21,10 @@ Then restart OctoPrint.
 
 ## Mid-print recovery (Continue print where…)
 
-In OctoPrint you can either:
+In OctoPrint:
 
-- Click **Continue print where…** in the **Files actions** (with a file selected), then enter layer + safety Z
-- Or open the sidebar panel **Continue print where…** and enter:
+- Click the **wrench** icon next to the file you want to recover, then enter layer + safety Z
+- Or open the sidebar panel **Octo Resume** and enter:
 
 - **Source file**: the G-code file path as shown in OctoPrint’s Files list
 - **Target layer**: e.g. `102` (matches `;LAYER:102` or `; layer 102`)

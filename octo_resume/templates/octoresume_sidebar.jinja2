@@ -1,11 +1,11 @@
-<div id="sidebar_plugin_myplugin_recovery" class="panel panel-default">
+<div id="sidebar_plugin_octoresume_recovery" class="panel panel-default">
   <div class="panel-heading">
-    <h3 class="panel-title">Continue print where…</h3>
+    <h3 class="panel-title">Octo Resume</h3>
   </div>
   <div class="panel-body">
     <div class="help-block">
       Generates a <code>*_RECOVERY.gcode</code> file that resumes at a chosen layer.
-      You can also use the <strong>Continue print where…</strong> button in the Files actions (next to the selected file).
+      Use the <strong>wrench</strong> icon next to any file in the Files list.
     </div>
 
     <div class="control-group">
@@ -24,7 +24,7 @@
       <div class="controls">
         <input class="input-small" type="number" min="0" step="1" placeholder="102"
                data-bind="value: recoveryTargetLayer" />
-        <span class="help-inline">Matches <code>;LAYER:102</code> or <code>; layer 102</code></span>
+        <span class="help-inline">Matches <code>;LAYER:102</code>, <code>; layer 102</code>, or the 102nd <code>;LAYER_CHANGE</code></span>
       </div>
     </div>
 
@@ -40,7 +40,7 @@
     <div class="control-group">
       <div class="controls">
         <button class="btn btn-primary" data-bind="click: generateRecovery, enable: canGenerateRecovery">
-          Continue print where…
+          Generate recovery file
         </button>
       </div>
     </div>
@@ -51,23 +51,19 @@
   </div>
 </div>
 
-<!-- Modal (opened from Files action button) -->
-<div id="myplugin_recovery_modal" class="modal hide fade" tabindex="-1" role="dialog" aria-hidden="true">
+<div id="octoresume_recovery_modal" class="modal hide fade" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-header">
     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-    <h3>Continue print where…</h3>
+    <h3>Octo Resume</h3>
   </div>
   <div class="modal-body">
-    <p>
-      Source: <code data-bind="text: recoverySourcePath"></code>
-    </p>
+    <p>Source: <code data-bind="text: recoverySourcePath"></code></p>
 
     <div class="control-group">
       <label class="control-label">Target layer (number)</label>
       <div class="controls">
-        <input id="myplugin_recovery_target_layer" class="input-small" type="number" min="0" step="1" placeholder="102"
+        <input id="octoresume_recovery_target_layer" class="input-small" type="number" min="0" step="1" placeholder="102"
                data-bind="value: recoveryTargetLayer" />
-        <span class="help-inline">Matches <code>;LAYER:102</code> or <code>; layer 102</code></span>
       </div>
     </div>
 
@@ -76,7 +72,6 @@
       <div class="controls">
         <input class="input-small" type="number" min="0" step="0.1" placeholder="50"
                data-bind="value: recoverySafetyZ" />
-        <span class="help-inline">Leave blank to use (resume Z + 5) or fallback to 50</span>
       </div>
     </div>
   </div>

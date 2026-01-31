@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "octoprint-myplugin"
+name = "octoprint-octo-resume"
 version = "0.1.0"
-description = "An OctoPrint plugin scaffold."
+description = "Mid-print recovery: generate a resume-ready *_RECOVERY.gcode from an existing file."
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "AGPL-3.0-or-later" }
@@ -20,9 +20,9 @@ Homepage = "https://example.invalid"
 
 # IMPORTANT: This registers the plugin with OctoPrint's plugin system.
 [project.entry-points."octoprint.plugin"]
-myplugin = "octoprint_myplugin"
+octoresume = "octo_resume"
 
 [tool.setuptools]
-packages = ["octoprint_myplugin"]
+packages = ["octo_resume"]
 
 
