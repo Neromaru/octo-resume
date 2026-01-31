@@ -177,23 +177,12 @@ def generate_recovery_gcode(
             f"Header_end={header_end}, target_idx={target_idx}. Try a higher target layer."
         )
 
-    out_lines: list[str] = []
-
-    # Header (modified: no Z homing)
-    for raw in lines[:header_end]:
-        rewritten = _rewrite_g28_no_z(raw)
-        out_lines.append(rewritten + "\n" if not rewritten.endswith("\n") else rewritten)
-
-    # Inject extruder reset right before resume marker
-    out_lines.append("; --- OCTO RESUME INSERT: reset extruder ---\n")
-    out_lines.append("G92 E0\n")
-
-    resume_lines = lines[target_idx:]
-
-    # safety_z is a *lift amount* (mm), not an absolute Z height. Default: 5mm.
-    lift_mm = 5.0 if safety_z is None else float(safety_z)
+    # safety_z is a *lift amount* (mm), not an absolute Z height. Default: 1mm.
+    lift_mm = 1.0 if safety_z is None else float(safety_z)
     if lift_mm < 0:
         raise RecoveryError("safety_z must be >= 0 (it is a lift amount in mm).")
+
+    resume_lines = lines[target_idx:]
 
     # Determine the resume layer's Z.
     #
@@ -224,7 +213,36 @@ def generate_recovery_gcode(
                 layer_z = z
                 break
 
-    inserted_safe_z = False
+    out_lines: list[str] = []
+
+    # Header (modified: no Z homing). Also inject:
+    # - move to X0 Y0 right after the first homing command
+    # - then lift to (layer_z + lift_mm) so the first resume XY move doesn't collide
+    injected_xy0_and_lift = False
+    for raw in lines[:header_end]:
+        rewritten = _rewrite_g28_no_z(raw)
+        out_lines.append(rewritten + "\n" if not rewritten.endswith("\n") else rewritten)
+
+        # After the first G28 in the header, move to X0 Y0 then lift to resume height + lift.
+        # (Requested behavior: XY to origin during homing sequence, then lift.)
+        if (not injected_xy0_and_lift) and rewritten.strip().upper().startswith("G28"):
+            out_lines.append("; --- OCTO RESUME INSERT: move to X0 Y0 before lifting ---\n")
+            out_lines.append("G0 X0 Y0 F6000\n")
+            out_lines.append("; --- OCTO RESUME INSERT: lift to resume height + safety ---\n")
+            if layer_z is not None:
+                out_lines.append(f"G1 Z{(layer_z + lift_mm):.3f} F900\n")
+            else:
+                # If we can't determine the resume Z, do a relative lift (best-effort).
+                out_lines.append("G91\n")
+                out_lines.append(f"G1 Z{lift_mm:.3f} F900\n")
+                out_lines.append("G90\n")
+            injected_xy0_and_lift = True
+
+    # Inject extruder reset right before resume marker
+    out_lines.append("; --- OCTO RESUME INSERT: reset extruder ---\n")
+    out_lines.append("G92 E0\n")
+
+    inserted_safe_z = injected_xy0_and_lift
     for raw in resume_lines:
         code, _comment = _split_comment(raw)
         up = code.strip().upper()
