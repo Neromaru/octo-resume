@@ -215,27 +215,32 @@ def generate_recovery_gcode(
 
     out_lines: list[str] = []
 
-    # Header (modified: no Z homing). Also inject:
+    # Header (modified: strip any Z-homing found in the original header). Also inject:
     # - move to X0 Y0 right after the first homing command
+    # - then HOME Z at X0 Y0 (establish Z0 at a known safe spot)
     # - then lift to (layer_z + lift_mm) so the first resume XY move doesn't collide
     injected_xy0_and_lift = False
     for raw in lines[:header_end]:
         rewritten = _rewrite_g28_no_z(raw)
         out_lines.append(rewritten + "\n" if not rewritten.endswith("\n") else rewritten)
 
-        # After the first G28 in the header, move to X0 Y0 then lift to resume height + lift.
-        # (Requested behavior: XY to origin during homing sequence, then lift.)
+        # After the first G28 in the header:
+        #   1) move to X0 Y0
+        #   2) home Z (so Z0 is correct)
+        #   3) lift to resume height + lift
         if (not injected_xy0_and_lift) and rewritten.strip().upper().startswith("G28"):
-            out_lines.append("; --- OCTO RESUME INSERT: move to X0 Y0 before lifting ---\n")
+            out_lines.append("; --- OCTO RESUME INSERT: move to X0 Y0 ---\n")
+            out_lines.append("G90\n")
             out_lines.append("G0 X0 Y0 F6000\n")
+            out_lines.append("; --- OCTO RESUME INSERT: home Z at X0 Y0 (establish Z0) ---\n")
+            out_lines.append("G28 Z\n")
             out_lines.append("; --- OCTO RESUME INSERT: lift to resume height + safety ---\n")
+            out_lines.append("G90\n")
             if layer_z is not None:
                 out_lines.append(f"G1 Z{(layer_z + lift_mm):.3f} F900\n")
             else:
-                # If we can't determine the resume Z, do a relative lift (best-effort).
-                out_lines.append("G91\n")
+                # If we can't determine the resume Z, at least lift off the bed after homing Z.
                 out_lines.append(f"G1 Z{lift_mm:.3f} F900\n")
-                out_lines.append("G90\n")
             injected_xy0_and_lift = True
 
     # Inject extruder reset right before resume marker
