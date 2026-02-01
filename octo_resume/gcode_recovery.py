@@ -233,7 +233,7 @@ def generate_recovery_gcode(
             out_lines.append("G90\n")
             out_lines.append("G0 X0 Y0 F6000\n")
             out_lines.append("; --- OCTO RESUME INSERT: home Z at X0 Y0 (establish Z0) ---\n")
-            out_lines.append("G28 Z\n")
+            out_lines.append("G0 Z0 F900\n")
             out_lines.append("; --- OCTO RESUME INSERT: lift to resume height + safety ---\n")
             out_lines.append("G90\n")
             if layer_z is not None:
